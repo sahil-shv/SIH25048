@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gamified STEM App</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1976d2">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>🎮 Gamified STEM Learning</h1>
+
+  <!-- Language Switch -->
+  <button id="langSwitch">Switch to हिंदी</button>
+
+  <!-- Math Puzzle Game -->
+  <div class="card">
+    <h2>🧮 Math Puzzle</h2>
+    <p id="puzzle"></p>
+    <input type="number" id="answer" placeholder="Your Answer">
+    <button onclick="checkAnswer()">Submit</button>
+    <p id="result"></p>
+  </div>
+
+  <!-- AI Tutor Chat -->
+  <div class="card">
+    <h2>🤖 AI Tutor</h2>
+    <div id="chatWindow"></div>
+    <input type="text" id="userInput" placeholder="Ask a question...">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <!-- Teacher Dashboard -->
+  <div class="card">
+    <h2>📊 Teacher Dashboard</h2>
+    <ul id="dashboard"></ul>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js")
+        .then(() => console.log("✅ Service Worker Registered"))
+        .catch(err => console.error("SW Registration failed:", err));
+    }
+  </script>
+</body>
+</html>
