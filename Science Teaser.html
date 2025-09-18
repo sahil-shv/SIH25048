@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Science Teaser — Balanced Reactions</title>
+<style>
+  :root{
+    --bg: #ffffff;
+    --accent: #f4c542;
+    --muted: #444;
+    --success: #c8e6c9;
+    --danger: #ffcdd2;
+  }
+  body{ font-family: Arial, sans-serif; background:var(--bg); color:var(--muted); margin:0; padding:24px; display:flex; flex-direction:column; align-items:center; }
+  .wrap{ max-width:960px; width:100%; }
+  h1{ color:var(--accent); margin:0 0 8px; }
+  p.lead{ margin-top:0; margin-bottom:12px; color:#555; }
+  .board{ border:3px solid var(--accent); border-radius:12px; padding:16px; }
+  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  .card{ background:#fff; border-radius:10px; padding:12px; }
+  .reaction{ font-size:1.05rem; display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+  .blank{ min-width:86px; height:32px; border:2px dashed var(--accent); border-radius:8px; text-align:center; line-height:28px; font-weight:700; }
+  .blank.correct{ background:var(--success); border-color:#388e3c; }
+  .blank.wrong{ background:var(--danger); border-color:#d32f2f; }
+  .choices{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:14px; }
+  .choice{ background:var(--accent); padding:8px 12px; border-radius:10px; font-weight:700; cursor:grab; }
+  .status{ margin-top:12px; font-weight:bold; }
+  .controls{ display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+  button{ padding:8px 12px; border-radius:8px; border:0; cursor:pointer; font-weight:bold; }
+  button.primary{ background:var(--accent); }
+  button.secondary{ background:#eee; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title" data-i18n="title">🧪 Science Teaser — Balanced Reactions</h1>
+  <p class="lead" id="instructions" data-i18n="instructions">
+    Drag each correct compound/coefficient into the blank of each balanced reaction.
+  </p>
+  <div class="controls">
+    <button id="langBtn" class="primary">Switch to Odia</button>
+    <button id="shuffleBtn" class="secondary" data-i18n="shuffle">🔀 Shuffle Choices</button>
+    <button id="resetBtn" class="secondary" data-i18n="reset">🔄 Reset Game</button>
+  </div>
+  <div class="board">
+    <div class="grid" id="reactions-grid"></div>
+    <div class="choices" id="choices"></div>
+    <div class="status" id="status" data-i18n="status">Filled 0 / 8</div>
+  </div>
+</div>
+
+<script>
+const sub2 = '\u2082';
+const reactions = [
+  { equation:["2Mg","+","O"+sub2,"→","__"], answer:"2MgO" },
+  { equation:["CaCO"+sub2,"→","CaO","+","__"], answer:"CO"+sub2 },
+  { equation:["Zn","+","2HCl","→","__","+","H"+sub2], answer:"ZnCl"+sub2 },
+  { equation:["2KClO"+sub2,"→","2KCl","+","__"], answer:"3O"+sub2 },
+  { equation:["NaOH","+","HCl","→","NaCl","+","__"], answer:"H"+sub2+"O" },
+  { equation:["Fe","+","S","→","__"], answer:"FeS" },
+  { equation:["2H"+sub2+"O","→","__","+","O"+sub2], answer:"2H"+sub2 },
+  { equation:["2H"+sub2,"+","+","O"+sub2,"→","__"], answer:"2H"+sub2+"O" }
+];
+const TOTAL = reactions.length;
+let pool = reactions.map(r=>r.answer);
+let filledCount=0;
+
+const gridEl=document.getElementById('reactions-grid');
+const choicesEl=document.getElementById('choices');
+const statusEl=document.getElementById('status');
+const shuffleBtn=document.getElementById('shuffleBtn');
+const resetBtn=document.getElementById('resetBtn');
+const langBtn=document.getElementById('langBtn');
+let currentLang="en";
+
+/* --- Translations --- */
+const translations = {
+  en: {
+    title: "🧪 Science Teaser — Balanced Reactions",
+    instructions: "Drag each correct compound/coefficient into the blank of each balanced reaction.",
+    shuffle: "🔀 Shuffle Choices",
+    reset: "🔄 Reset Game",
+    status: (filled,total)=>`Filled ${filled} / ${total}`,
+    success: "🎉 All reactions solved!"
+  },
+  or: {
+    title: "🧪 ବିଜ୍ଞାନ ଖେଳ — ସମତୁଲିତ ପ୍ରତିକ୍ରିୟା",
+    instructions: "ପ୍ରତ୍ୟେକ ସମତୁଲିତ ପ୍ରତିକ୍ରିୟାର ଖାଲି ସ୍ଥାନରେ ସଠିକ୍ ସଂଯୋଗ/ଗୁଣାଙ୍କୁ ଟାଣି ଆଣ।",
+    shuffle: "🔀 ପସନ୍ଦଗୁଡିକୁ ଅଳଗାଇବା",
+    reset: "🔄 ଖେଳକୁ ପୁନଃସେଟ୍ କର",
+    status: (filled,total)=>`${total}ରୁ ${filled} ଭରାଗଲା`,
+    success: "🎉 ସମସ୍ତ ପ୍ରତିକ୍ରିୟା ସମାଧାନ ହେଲା!"
+  }
+};
+
+/* --- Render reactions --- */
+function renderReactions(){
+  gridEl.innerHTML='';
+  reactions.forEach(r=>{
+    const card=document.createElement('div');
+    card.className='card';
+    const line=document.createElement('div');
+    line.className='reaction';
+    r.equation.forEach(tok=>{
+      if(tok==="__"){
+        const span=document.createElement('span');
+        span.className='blank';
+        span.dataset.answer=r.answer;
+        span.dataset.filled='false';
+        span.addEventListener('dragover',e=>e.preventDefault());
+        span.addEventListener('drop',handleDrop);
+        line.appendChild(span);
+      }else{
+        const span=document.createElement('span');
+        span.textContent=tok;
+        line.appendChild(span);
+      }
+    });
+    card.appendChild(line);
+    gridEl.appendChild(card);
+  });
+}
+
+/* --- Shuffle --- */
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+function renderChoices(){
+  choicesEl.innerHTML='';
+  shuffle(pool).forEach(val=>{
+    const d=document.createElement('div');
+    d.className='choice';
+    d.draggable=true;
+    d.textContent=val;
+    d.addEventListener('dragstart',e=>{
+      e.dataTransfer.setData('text/plain',val);
+    });
+    choicesEl.appendChild(d);
+  });
+}
+
+/* --- Drop handling --- */
+function handleDrop(e){
+  e.preventDefault();
+  const blank=e.currentTarget;
+  if(blank.dataset.filled==="true") return;
+  const dragged=e.dataTransfer.getData('text/plain');
+  if(dragged===blank.dataset.answer){
+    blank.textContent=dragged;
+    blank.classList.add('correct');
+    blank.dataset.filled="true";
+    filledCount++;
+    removeChoice(dragged);
+    updateStatus();
+    if(filledCount===TOTAL){
+      statusEl.textContent=translations[currentLang].success;
+    }
+  } else {
+    blank.classList.add('wrong');
+    setTimeout(()=>blank.classList.remove('wrong'),700);
+  }
+}
+function removeChoice(val){
+  document.querySelectorAll('.choice').forEach(c=>{
+    if(c.textContent===val) c.remove();
+  });
+}
+function updateStatus(){
+  statusEl.textContent=translations[currentLang].status(filledCount,TOTAL);
+}
+function resetGame(){
+  pool=reactions.map(r=>r.answer);
+  filledCount=0;
+  renderReactions();
+  renderChoices();
+  updateStatus();
+}
+shuffleBtn.onclick=()=>renderChoices();
+resetBtn.onclick=()=>resetGame();
+
+/* --- Language toggle --- */
+function switchLanguage(){
+  currentLang=(currentLang==="en")?"or":"en";
+  const t=translations[currentLang];
+  document.getElementById("title").textContent=t.title;
+  document.getElementById("instructions").textContent=t.instructions;
+  shuffleBtn.textContent=t.shuffle;
+  resetBtn.textContent=t.reset;
+  updateStatus();
+  langBtn.textContent=(currentLang==="en")?"Switch to Odia":"Switch to English";
+}
+langBtn.onclick=switchLanguage;
+
+/* Init */
+resetGame();
+</script>
+</body>
+</html>
