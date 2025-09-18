@@ -1,12 +1,11 @@
-const CACHE_NAME = "STEM-v1";
 const FILES_TO_CACHE = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./script.js",
-  "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "/",
+  "/index.html",
+  "/style.css",
+  "/script.js",
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -44,3 +43,4 @@ self.addEventListener("fetch", (event) => {
 });
 
 navigator.serviceWorker.register("/service-worker.js");
+
