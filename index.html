@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Logic Maze — Class 8 Python</title>
+<style>
+  :root {
+    --yellow: #f4c542;
+    --yellow-dark: #e6b800;
+    --white: #ffffff;
+    --muted: #666;
+    --success: #4caf50;
+    --danger: #ff4757;
+    --surface: #fff8e1;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:Arial, sans-serif;background:var(--white);color:#222;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:20px;}
+
+  header{text-align:center;margin-bottom:18px;}
+  h1{color:var(--yellow);font-size:1.6rem;margin-bottom:6px;}
+  p.lead{color:var(--muted);margin-bottom:12px;max-width:760px;}
+
+  .stats{display:flex;gap:12px;margin-bottom:12px;justify-content:center;}
+  .stat{background:#fff;border-radius:10px;padding:8px 12px;box-shadow:0 2px 6px rgba(0,0,0,0.06);text-align:center;}
+  .stat .label{font-size:0.8rem;color:var(--muted);}
+  .stat .value{font-weight:700;color:var(--yellow);}
+
+  #maze{display:grid;grid-template-columns:repeat(6,60px);grid-template-rows:repeat(6,60px);gap:4px;padding:10px;border-radius:12px;background:linear-gradient(180deg,rgba(244,197,66,0.08),rgba(244,197,66,0.04));border:4px solid var(--yellow);box-shadow:0 10px 30px rgba(0,0,0,0.06);margin-bottom:16px;}
+
+  .cell{width:60px;height:60px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;transition:.12s;user-select:none;}
+  .cell.path{background:var(--white);border:2px solid rgba(0,0,0,0.04);}
+  .cell.wall{background:var(--yellow);}
+  .cell.goal{background:var(--success);color:#fff;}
+  .cell.checkpoint{background:var(--danger);color:#fff;}
+  .cell.checkpoint.solved{background:var(--success);}
+  .cell.player{background:var(--yellow);color:#fff;width:42px;height:42px;border-radius:50%;box-shadow:0 6px 14px rgba(244,197,66,0.28);font-size:1.1rem;}
+
+  .controls{margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .control-grid{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,56px);gap:8px;}
+  .ctrl{width:56px;height:56px;border-radius:10px;background:var(--yellow);color:#fff;border:0;font-size:1.2rem;cursor:pointer;box-shadow:0 6px 12px rgba(0,0,0,0.08);}
+  .ctrl:active{transform:translateY(2px);}
+  .center-empty{background:transparent;}
+
+  .modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:80;}
+  .modal{max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.25);}
+  .modal-header{background:var(--yellow);padding:12px 16px;color:#fff;font-weight:700;}
+  .modal-body{padding:16px;background:var(--surface);}
+  .options{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
+  .opt-btn{padding:10px;border-radius:8px;background:#fff;cursor:pointer;text-align:left;font-weight:600;}
+  .opt-btn.correct{background:#e6ffef;}
+  .opt-btn.wrong{background:#fff0f0;}
+
+  .modal-footer{padding:12px;display:flex;justify-content:flex-end;gap:8px;background:#fff;}
+  .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:700;}
+  .btn.secondary{background:#777;color:#fff;}
+  .btn.primary{background:var(--yellow);color:#fff;}
+
+  /* Language button */
+  #lang-toggle{position:fixed;top:12px;right:12px;background:var(--yellow);color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer;}
+
+  @media(max-width:520px){
+    #maze{grid-template-columns:repeat(6,44px);grid-template-rows:repeat(6,44px);}
+    .cell{width:44px;height:44px;}
+    .ctrl{width:46px;height:46px;}
+  }
+</style>
+</head>
+<body>
+  <button id="lang-toggle">Switch to Odia</button>
+
+  <header>
+    <h1 data-i18n="title">Logic Maze — Class 8 (Python)</h1>
+    <p class="lead" data-i18n="desc">Move the yellow player using arrow keys or buttons. Solve the short Python questions at checkpoints to advance. Reach the green goal after solving all checkpoints.</p>
+    <div class="stats">
+      <div class="stat"><div class="label" data-i18n="moves">Moves</div><div id="moves" class="value">0</div></div>
+      <div class="stat"><div class="label" data-i18n="solved">Solved</div><div id="solved" class="value">0</div></div>
+      <div class="stat"><div class="label" data-i18n="required">Required</div><div id="required" class="value">2</div></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="maze"></div>
+    <div class="controls">
+      <div class="control-grid">
+        <div></div><button class="ctrl" id="btn-up">↑</button><div></div>
+        <button class="ctrl" id="btn-left">←</button><div></div><button class="ctrl" id="btn-right">→</button>
+        <div></div><button class="ctrl" id="btn-down">↓</button><div></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="modal-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header" id="modal-title" data-i18n="question">Question</div>
+      <div class="modal-body">
+        <p id="question-text"></p>
+        <div class="options" id="options-list"></div>
+        <div id="feedback" style="font-weight:700;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="close-modal" class="btn secondary" data-i18n="close">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Maze layout
+const mazeLayout = [
+  [0,0,0,0,0,0],
+  [0,1,1,1,1,0],
+  [0,1,0,0,1,0],
+  [0,1,2,1,1,0],
+  [0,1,0,0,3,0],
+  [0,1,1,1,1,4]
+];
+
+// Questions in two languages
+const questions = {
+  2: {
+    en: { q:"Which statement prints text to the screen in Python?", opts:["echo('hi')","print('hi')","cout << 'hi'"], correct:1, exp:"Use print()." },
+    or: { q:"Python ରେ ପର୍ଦାରେ ଟେକ୍ସଟ୍ ମୁଦ୍ରଣ କରିବା ପାଇଁ କେଉଁ statement ବ୍ୟବହାର କରାଯାଏ?", opts:["echo('hi')","print('hi')","cout << 'hi'"], correct:1, exp:"Python ରେ print() ବ୍ୟବହାର କରନ୍ତୁ।" }
+  },
+  3: {
+    en: { q:"Which symbol starts a single-line comment in Python?", opts:["//","/*","#"], correct:2, exp:"Use # for comments." },
+    or: { q:"Python ରେ ସିଙ୍ଗଲ୍-ଲାଇନ୍ comment କୁଣ୍ଡିଆରୁ ଆରମ୍ଭ ହୁଏ?", opts:["//","/*","#"], correct:2, exp:"Comment ପାଇଁ # ବ୍ୟବହାର କରନ୍ତୁ।" }
+  }
+};
+
+// Translations for UI
+const translations = {
+  en: {
+    title:"Logic Maze — Class 8 (Python)",
+    desc:"Move the yellow player using arrow keys or buttons. Solve the short Python questions at checkpoints to advance. Reach the green goal after solving all checkpoints.",
+    moves:"Moves", solved:"Solved", required:"Required",
+    question:"Question", close:"Close",
+    msgWin:"🎉 Well done! You reached the goal!",
+    msgNeed:(n,s)=>`Solve ${n} checkpoints first (${s}/${n})`
+  },
+  or: {
+    title:"ଲଜିକ୍ ମେଜ୍ — କ୍ଲାସ୍ 8 (Python)",
+    desc:"Arrow କୀ ବା ବଟନ୍ ବ୍ୟବହାର କରି ପିତଳୀ colour ଖେଳାଳିକୁ ଘୁଞ୍ଚାନ୍ତୁ। Checkpoints ରେ Python ପ୍ରଶ୍ନର ଉତ୍ତର ଦିଅନ୍ତୁ। ସବୁ checkpoints ସମାଧାନ କରିଲେ ସବୁଜ goal କୁ ପହଞ୍ଚନ୍ତୁ।",
+    moves:"ଚଳ", solved:"ସମାଧାନ", required:"ଆବଶ୍ୟକ",
+    question:"ପ୍ରଶ୍ନ", close:"ବନ୍ଦ କରନ୍ତୁ",
+    msgWin:"🎉 ବହୁତ ଭଲ! ଆପଣ goal ପହଞ୍ଚିଗଲେ!",
+    msgNeed:(n,s)=>`ପ୍ରଥମେ ${n} checkpoint ସମାଧାନ କରନ୍ତୁ (${s}/${n})`
+  }
+};
+
+let lang="en";
+const REQUIRED_SOLVED=2;
+let state={player:{row:1,col:1},moves:0,solved:new Set(),modalOpen:false};
+
+const mazeEl=document.getElementById('maze');
+const movesEl=document.getElementById('moves');
+const solvedEl=document.getElementById('solved');
+const requiredEl=document.getElementById('required');
+const backdrop=document.getElementById('modal-backdrop');
+const qText=document.getElementById('question-text');
+const optsList=document.getElementById('options-list');
+const feedback=document.getElementById('feedback');
+const closeModalBtn=document.getElementById('close-modal');
+
+// Draw maze
+function drawMaze(){
+  mazeEl.innerHTML='';
+  for(let r=0;r<6;r++){
+    for(let c=0;c<6;c++){
+      const v=mazeLayout[r][c];
+      const cell=document.createElement('div');
+      cell.className='cell';
+      if(v===0) cell.classList.add('wall');
+      else if(v===1) cell.classList.add('path');
+      else if(v===4) cell.classList.add('goal');
+      else if(v===2||v===3){
+        cell.classList.add('checkpoint');
+        if(state.solved.has(v)){cell.classList.add('solved');cell.textContent='✓';}
+        else cell.textContent='?';
+      }
+      if(state.player.row===r&&state.player.col===c){cell.innerHTML='<div class="cell player">😊</div>';}
+      mazeEl.appendChild(cell);
+    }
+  }
+  movesEl.textContent=state.moves;
+  solvedEl.textContent=state.solved.size;
+  requiredEl.textContent=REQUIRED_SOLVED;
+}
+
+// Move
+function move(dr,dc){
+  if(state.modalOpen) return;
+  const nr=state.player.row+dr,nc=state.player.col+dc;
+  if(nr<0||nr>5||nc<0||nc>5) return;
+  const v=mazeLayout[nr][nc];
+  if(v===0) return;
+  if((v===2||v===3)&&!state.solved.has(v)){openQuestionModal(v,nr,nc);return;}
+  state.player={row:nr,col:nc};state.moves++;drawMaze();
+  if(v===4){
+    if(state.solved.size>=REQUIRED_SOLVED){alert(translations[lang].msgWin);resetGame();}
+    else alert(translations[lang].msgNeed(REQUIRED_SOLVED,state.solved.size));
+  }
+}
+
+// Question modal
+function openQuestionModal(id,r,c){
+  const q=questions[id][lang];
+  state.modalOpen=true;backdrop.style.display='flex';
+  qText.textContent=q.q;optsList.innerHTML='';feedback.textContent='';
+  q.opts.forEach((opt,i)=>{
+    const b=document.createElement('button');
+    b.className='opt-btn';b.textContent=opt;
+    b.onclick=()=>{
+      if(i===q.correct){
+        b.classList.add('correct');feedback.textContent=q.exp;
+        state.solved.add(id);state.player={row:r,col:c};state.moves++;
+        setTimeout(()=>{closeModal();drawMaze();},700);
+      }else{b.classList.add('wrong');feedback.textContent="✗";}
+    };
+    optsList.appendChild(b);
+  });
+}
+function closeModal(){state.modalOpen=false;backdrop.style.display='none';}
+function resetGame(){state={player:{row:1,col:1},moves:0,solved:new Set(),modalOpen:false};drawMaze();}
+
+// Language toggle
+document.getElementById('lang-toggle').onclick=()=>{
+  lang=(lang==="en"?"or":"en");
+  applyTranslations();
+};
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key=el.getAttribute('data-i18n');
+    el.textContent=translations[lang][key];
+  });
+  document.getElementById('lang-toggle').textContent=(lang==="en"?"Switch to Odia":"Switch to English");
+  drawMaze();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==="ArrowUp") move(-1,0);
+  if(e.key==="ArrowDown") move(1,0);
+  if(e.key==="ArrowLeft") move(0,-1);
+  if(e.key==="ArrowRight") move(0,1);
+});
+document.getElementById('btn-up').onclick=()=>move(-1,0);
+document.getElementById('btn-down').onclick=()=>move(1,0);
+document.getElementById('btn-left').onclick=()=>move(0,-1);
+document.getElementById('btn-right').onclick=()=>move(0,1);
+closeModalBtn.onclick=closeModal;
+
+drawMaze();
+applyTranslations();
+</script>
+</body>
+</html>
